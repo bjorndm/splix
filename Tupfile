@@ -1,0 +1,34 @@
+
+CFLAGS = -I /usr/local/include -I ./include -Wall -Wno-unused 
+
+ifeq (@(RELEASE),y)
+  CFLAGS += -Os
+else
+  CFLAGS += -g
+endif
+
+
+# Source files of splix
+SRC_FILES =  src/bptrie.c
+SRC_FILES += src/ses.c
+
+MAIN_FILE  = src/splix.c
+
+EXPAT_LIBS  = -lexpat
+
+SPLIX_LIBS = $(EXPAT_LIBS)
+
+LDFLAGS = $(SPLIX_LIBS)
+
+!cc = |> ^ CC %f ^ gcc  $(CFLAGS) -c %f -o %o |>
+!ld = |> gcc %f $(LDFLAGS) -o %o |> 
+
+: foreach $(SRC_FILES) |> !cc |>  build/%B.o {objects}
+: $(MAIN_FILE) |> !cc |>  build/%B.o {main}
+: {objects} {main} |> !ld |> bin/splix
+
+# ^ LINK %f ^
+
+
+
+
