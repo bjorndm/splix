@@ -9,7 +9,7 @@ endif
 
 
 # Source files of splix
-SRC_FILES =  src/bptrie.c
+SRC_FILES =  src/slre.c
 SRC_FILES += src/ses.c
 
 MAIN_FILE  = src/splix.c
@@ -19,13 +19,16 @@ EXPAT_LIBS  = -lexpat
 SPLIX_LIBS = $(EXPAT_LIBS)
 
 LDFLAGS = $(SPLIX_LIBS)
+LD_STATIC_FLAGS = -static $(LDFLAGS)
 
 !cc = |> ^ CC %f ^ gcc  $(CFLAGS) -c %f -o %o |>
 !ld = |> gcc %f $(LDFLAGS) -o %o |> 
+!ld_static = |> gcc %f $(LD_STATIC_FLAGS) -o %o |> 
 
 : foreach $(SRC_FILES) |> !cc |>  build/%B.o {objects}
 : $(MAIN_FILE) |> !cc |>  build/%B.o {main}
 : {objects} {main} |> !ld |> bin/splix
+: {objects} {main} |> !ld_static |> bin/splix_static
 
 # ^ LINK %f ^
 

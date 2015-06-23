@@ -1,15 +1,90 @@
+/*
+
+The Sleepycat License
+
+Splix is copyright (c) 2015 (bjorn.de.meyer@gmail.com),
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, 
+   this list of conditions and the following disclaimer.
+   
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation 
+   and/or other materials provided with the distribution.
+   
+3. Redistributions in any form must be accompanied by information on how to 
+   obtain complete source code for the Splix software and any accompanying 
+   software that uses the Splix software. The source code must either be 
+   included in the distribution or be available for no more than the cost of 
+   distribution plus a nominal fee, and must be freely redistributable under 
+   reasonable conditions. For an executable file, complete source code means 
+   the source code for all modules it contains. It does not include source code 
+   for modules or files that typically accompany the major components of the 
+   operating system on which the executable file runs.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE 
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <expat.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "ses.h"
+#include "slre.h"
+#include "kbtree.h"
+#include "kvec.h"
 
 #define SPLIX_BUFF_SIZE (1024*256)
 #define SPLIX_VERSION "1.0-RC1"
 #define SPLIX_FILE_BUFF_SIZE (1024*512) 
+
+
+/** Struct for file names generated. */
+struct SplixName {
+  char * name;
+  int    used;
+};
+
+typedef struct SplixName SplixName;
+
+#define splixname_compare(a, b) (strcmp((a).name,(b).name))
+
+KBTREE_INIT(SplixNameTree, SplixName, splixname_compare)
+
+
+/** Struct for file name parts. */
+struct SplixNamePart {
+  char * part;
+};
+
+typedef struct SplixNamePart SplixNamePart;
+
+/** Struct for namespaces. */
+struct SplixNamespace {
+  char * key;
+  char * namespace;
+};
+
+typedef struct SplixNamespace SplixNamespace;
+
 
 
 struct SplixData {
@@ -24,9 +99,20 @@ struct SplixData {
   FILE       * fheader;
   FILE       * fsplit;
   int          split_number;
+  int          keep_ns;
+  int          must_add_ns;
+  
   /* Flags to help preserve self-closing tags */
-  long long    start_index;
-  int          first_child;
+  long long                 start_index;
+  int                       first_child;
+  /* Names that the splittter already has used. */
+  kbtree_t(SplixNameTree) * names; 
+  
+  /* Stack of name parts. */
+  kvec_t(SplixNamePart)     parts;
+  
+  /* Stack of name spaces of the root tag . */
+  kvec_t(SplixNamespace)    rootns;
 };
 
 /** Escapes xml into in into the buffer Swis in into with to_escape  replaced by esxape in buffer me by escape */
@@ -37,9 +123,7 @@ char * swis_escape_xml(Swis * me, const char * in) {
       case '>'  : swis_append_cstr(me, "&gt;"); break;
       case '&'  : swis_append_cstr(me, "&amp;"); break;
       case '"'  : swis_append_cstr(me, "&quot;"); break;
-      /* case '\'' : swis_append_cstr(me, "&apos;"); break; 
-       XXX this should be quoted I guess.
-       */
+      case '\'' : swis_append_cstr(me, "&apos;"); break; 
       default   : swis_append_char(me, *in); break;
     }
   }
@@ -47,7 +131,88 @@ char * swis_escape_xml(Swis * me, const char * in) {
   return me->text;
 }
 
+/** Encodes the string into percent code. */
+char * swis_percent_encode(Swis * out, char * in) {
+  for (; (*in); in++) {
+    int ch = (*in);
+    if (isalnum(ch)) { 
+      swis_append_char(out, ch);
+    } else {
+      char buf[16];
+      sprintf(buf, "%02X", ch);
+      swis_append_char(out, '%');
+      swis_append_cstr(out, buf);
+    }
+  } 
+  swis_nul_terminate(out);
+  return out->text;
+}
 
+/** Decodes the string from percent code. */
+char * swis_percent_decode(Swis * out, const char * in) {
+  /* Walk over the bytes in the string to  decode. */     
+  while ((*in)) {
+    int ch = (*in);
+    if (isalnum(ch)) { 
+      swis_append_char(out, ch);
+      in++;
+    } else if (ch == '%') {
+        char buf[16];
+        int  n1     = *(in + 1);
+        int  n2     = *(in + 2);
+        int outch;
+        
+        sprintf(buf, "%c%c", n1, n2);
+        outch = strtol(buf, NULL, 16);
+        swis_append_char(out, outch);
+        in += 3;
+    } else { 
+        /* Whatever, just copy the byte */
+        swis_append_char(out, ch);
+        in++;
+    }
+  }
+  return out->text;
+}
+  
+const char * splix_find_matching_attribute_value(const XML_Char ** atts, char * regexp) {
+  const XML_Char ** attr;  
+  for (attr = atts; attr[0] ; attr += 2) {
+    const char * attribute = attr[0];
+    const char * value     = attr[1];
+    if (slre_match(SLRE_NO_CAPTURE, regexp, attribute, strlen(attribute)) == SLRE_OK) {
+      return value;
+    }    
+  }
+  return NULL;
+}  
+  
+  
+char * splix_attribute_name(Swis * real_out, const XML_Char *name, const XML_Char **atts) {
+  Swis out;
+  const char * id;
+  const char * ref;
+  
+  swis_new_empty(&out);
+  swis_append_cstr(&out, (char *)name);
+  
+  /* Find the first attribute that matches id in any case. */
+  id = splix_find_matching_attribute_value(atts, "[iI][dD]");
+  if (id) {
+    swis_append_cstr(&out, (char *)id);
+  } else {
+    ref = splix_find_matching_attribute_value(atts, ".*[rR][eR][fF].*");
+    if (ref) {
+      swis_append_cstr(&out, (char *)ref);
+    }
+  }
+  
+  /* Percent encode the whole to the real output. */
+  swis_percent_encode(real_out, out.text);
+  swis_free(&out);
+  
+  return real_out->text;
+}
 
 
 int splix_output_fwrite(const void *ptr, size_t size, size_t nmemb, void * splix_data) {
@@ -72,49 +237,122 @@ int splix_output_print(void * data, const char * format, ...) {
   return result;
 }
 
-int splix_change_split_file(struct SplixData * sdat) {
-  Swis buf;
-  char ibuf[255];
-  swis_new(&buf, sdat->outname);
-  swis_append_char(&buf, '/');
-  
-  sprintf(ibuf, "%d", sdat->split_number);
-  swis_append_cstr(&buf, ibuf);
+                    
 
-  sdat->split_number++;
+int splix_change_split_file(struct SplixData * sdat, const XML_Char *name, const XML_Char **atts) {
+  Swis outname;
+  char ibuf[255];
+  int index, stop;
+  SplixName  * used;
+  SplixName   check;
   
+  
+  swis_new(&outname, sdat->outname);
+  swis_append_char(&outname, '/');
+  
+  /* Concatenate all name parts. */
+  stop = kv_size(sdat->parts);  
+  for (index = 0; index < stop; index++) {
+    SplixNamePart np;
+    np = kv_a(SplixNamePart, sdat->parts, index);
+    if (index > 0) { 
+      swis_append_char(&outname, '_');
+    }
+    swis_append_cstr(&outname, np.part);
+  }
+  
+  check.name = outname.text;
+  check.used = 0;
+  /* Look up if the namewas already used in the btree */
+  used = kb_getp(SplixNameTree, sdat->names, &check);
+  
+  if (used) {
+    /* The name was already used. Increase the count and add a suffix to the name. */    
+    char suffix[64];
+    used->used++;
+    sprintf(suffix, "%d", used->used);
+    swis_append_char(&outname, '.');
+    swis_append_cstr(&outname, suffix);
+  } else {
+    /* The name wasn't used yet. Store a duplicate of it */
+    check.name = strdup(outname.text);
+    kb_putp(SplixNameTree, sdat->names, &check);
+  }
+  
+  /* Finally add an .xml extension. */
+  swis_append_cstr(&outname, ".xml");
   
   if (sdat->fsplit) {
     fclose(sdat->fsplit);
     sdat->fsplit = NULL;
   }
   
-  sdat->fsplit = fopen(buf.text, "w");
+  sdat->fsplit = fopen(outname.text, "w");
+  
+  fprintf(stderr, "\33[1\rKwriting: %s", outname.text);  
+  
+  if (sdat->fsplit) {   
+    /* Keep reference to split-off file in output file. */
+    fprintf(sdat->fheader, "<splix ref=\"%s\"/>", outname.text);
+  } else {     
+     fprintf(stderr, "\nCould not open: %s\n", outname.text);
+  }
     
-  fprintf(stderr, "\33[1\rKwriting: %s %p",buf.text, sdat->fsplit);  
-  swis_free(&buf);
-  if (!sdat->fsplit) return ENOENT;
+  swis_free(&outname);
+  
+  if (!sdat->fsplit) {
+    return ENOENT;
+  }
   
   /* Use large buffers for writing. */
   setvbuf(sdat->fsplit, NULL, _IOFBF, SPLIX_FILE_BUFF_SIZE);
+  
+  /* Add an XML header to the new output file. */
+  fprintf(sdat->fsplit,  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+  
+  /* Prepare to add the namespaces to the next open tag if needed */
+  sdat->must_add_ns = sdat->keep_ns;
   
   return 0;
 }
 
 
 void splix_handle_start_element(void *data, const XML_Char *name, const XML_Char **atts) {
+  int index;
   const XML_Char ** attr;
   struct SplixData * sdat = data;
+  Swis attribute_name;
+  SplixNamePart part;
+  
+  swis_new_empty(&attribute_name);
+  splix_attribute_name(&attribute_name, name, atts);
+  /* Push name part onto the name stack. */
+  part.part = attribute_name.text;
+  kv_push(SplixNamePart, sdat->parts, part);
+  
   
   /* Split off to a new file if the depth level is reached */
   if (sdat->current_level == sdat->split_level) {
-      splix_change_split_file(sdat);
+      splix_change_split_file(sdat, name, atts);
       sdat->fout = sdat->fsplit;
   }
   sdat->current_level++;
   
   sdat->first_child = !0;
+  /* tag output... */
   splix_output_print(data, "<%s", name);
+  
+  /* Add namespaces if needed, i.e. on a new document if requested with -N. */
+  if (sdat->must_add_ns) {   
+    for (index = 0; index < kv_size(sdat->rootns); index++) {
+      SplixNamespace ns = kv_a(SplixNamespace, sdat->rootns, index);
+      splix_output_print(data, " %s=", ns.key);
+      splix_output_print(data, "\"%s\"", ns.namespace);
+    }  
+    sdat->must_add_ns = 0;
+  }
+  
+  /* and attributes */
   for (attr = atts; attr[0] ; attr += 2) {
     Swis buf;
     swis_new_empty(&buf);
@@ -125,6 +363,16 @@ void splix_handle_start_element(void *data, const XML_Char *name, const XML_Char
     swis_escape_xml(&buf, attr[1]);
     splix_output_print(data, "\"%s\"", buf.text);
     swis_free(&buf);
+    
+    /* Handle namespaces */
+    if (slre_match(SLRE_NO_CAPTURE, "^xmlns:", attr[0], strlen(attr[0])) == SLRE_OK) {
+      SplixNamespace ns;
+      ns.key        = strdup(attr[0]);
+      ns.namespace  = strdup(attr[1]);
+      fprintf(stdout, "Found namespace %s->%s\n\n", attr[0], attr[1]);      
+      kv_push(SplixNamespace,  sdat->rootns, ns);
+    }  
+        
   }
   /*  splix_output_print(data, ">"); */
 }
@@ -138,6 +386,7 @@ void splix_report_position(struct SplixData * sdat, const char * prefix, const X
 }
 
 void splix_handle_end_element(void *data, const XML_Char *name) {
+  SplixNamePart part;
   struct SplixData * sdat = data;
   int bc;
   
@@ -161,6 +410,12 @@ void splix_handle_end_element(void *data, const XML_Char *name) {
       sdat->fsplit = NULL;
       sdat->fout   = sdat->fheader;
   }
+  
+  /* Pop the last name part off the name stack and clean it up. */
+  part = kv_pop(sdat->parts);
+  free(part.part);
+  
+  
 }
 
 /* s is not 0 terminated. */
@@ -377,7 +632,7 @@ void splix_setup_parser(XML_Parser parser, void * data) {
 }
 
 
-int splix_setup_data(struct SplixData * data, XML_Parser parser, char * outname, int level) {
+int splix_setup_data(struct SplixData * data, XML_Parser parser, char * outname, int level, int keep_ns) {
   Swis buf;
   
   if (!data) return -1;
@@ -389,25 +644,61 @@ int splix_setup_data(struct SplixData * data, XML_Parser parser, char * outname,
   data->current_level = 0;
   data->split_number  = 0;
   data->fsplit        = NULL;
+  data->keep_ns       = keep_ns;
+  data->must_add_ns   = 0;
+  
+  /* Open header file .*/
   swis_new(&buf,outname);
   swis_append_cstr(&buf,"/header.xml");  
-  data->fheader = fopen(buf.text, "w");
+  data->fheader       = fopen(buf.text, "w");
   if (!data->fheader) return ENOENT;
-  setvbuf(data->fheader, NULL, _IOFBF, SPLIX_FILE_BUFF_SIZE);
-  
+  setvbuf(data->fheader, NULL, _IOFBF, SPLIX_FILE_BUFF_SIZE);  
   swis_free(&buf);
-  data->fout =  data->fheader;    
+  data->fout          = data->fheader;    
+  
+  /* Open binary tree */
+  data->names         = kb_init(SplixNameTree, KB_DEFAULT_SIZE); 
+  
+  /* Open parts stack */ 
+  kv_init(data->parts);
+  
+  /* Open namespace stack */ 
+  kv_init(data->rootns);
+  
   return 0;
 }
 
 
+/* Traversal handler */
+#define cleanup_traverse(p) free((p)->name);
+
 int splix_cleanup_data(struct SplixData * data) {
+  int index;
   if (data->fheader) fclose(data->fheader);
+  if (data->names) {     
+    __kb_traverse(SplixName, data->names, cleanup_traverse);
+    kb_destroy(SplixNameTree, data->names);
+  }
+  
+  
+  for (index = 0; index < kv_size(data->parts); index++) {
+    SplixNamePart part = kv_a(SplixNamePart, data->parts, index);
+    free(part.part);
+  }  
+  kv_destroy(data->parts);
+  
+  for (index = 0; index < kv_size(data->rootns); index++) {
+    SplixNamespace ns = kv_a(SplixNamespace, data->rootns, index);
+    free(ns.key);
+    free(ns.namespace);
+  }  
+  kv_destroy(data->rootns);
+  
   return 0; 
 }
 
 
-static int splix_split_file(FILE * fin, char * outname, int level) {
+static int splix_split_file(FILE * fin, char * outname, int level, int keep_ns) {
   int result = 0;
   int setres = 0;
   size_t bytes_read;
@@ -416,7 +707,7 @@ static int splix_split_file(FILE * fin, char * outname, int level) {
   if (!parser) return ENOMEM;  
   struct SplixData data;
   
-  setres = splix_setup_data(&data, parser, outname, level);
+  setres = splix_setup_data(&data, parser, outname, level, keep_ns);
   if (setres) {
     return setres;
   }
@@ -467,7 +758,7 @@ static int splix_split_file(FILE * fin, char * outname, int level) {
 }
 
 
-static int splix_split_filename(char * inname, char * outname, int level) {
+static int splix_split_filename(char * inname, char * outname, int level, int keep_ns) {
   FILE * fin;
   int result;
   fin = fopen(inname, "r");
@@ -475,8 +766,9 @@ static int splix_split_filename(char * inname, char * outname, int level) {
     fprintf(stderr, "Input file %s not found.\n", inname);
     return ENOENT;
   }
-  result = splix_split_file(fin, outname, level);
+  result = splix_split_file(fin, outname, level, keep_ns);
   fclose(fin);
+  fprintf(stderr, "\n"); 
   return result;
 }
 
@@ -494,11 +786,11 @@ void splix_show_help() {
 
 
 int main(int argc, char * argv[]) {
-  int split_level = -1, keep_namespaes; 
+  int split_level = -1, keep_namespaces = 0; 
   char * input_name = NULL, *output_name = NULL;
   int opt;
   
-  while ((opt = getopt(argc, argv, "l:i:o:")) != -1) {
+  while ((opt = getopt(argc, argv, "l:i:o:N")) != -1) {
     switch (opt) {
     case 'i':
       input_name = optarg;
@@ -511,7 +803,11 @@ int main(int argc, char * argv[]) {
     case 'l':
       split_level = atoi(optarg);
     break;
-               
+    
+    case 'N':
+      keep_namespaces = !0;
+    break;
+                     
     default: /* '?' */
       splix_show_help();
       exit(EXIT_FAILURE);
@@ -524,7 +820,7 @@ int main(int argc, char * argv[]) {
     exit(EXIT_FAILURE);
   }    
   
-  return splix_split_filename(input_name, output_name, split_level);
+  return splix_split_filename(input_name, output_name, split_level, keep_namespaces);
 }
 
 

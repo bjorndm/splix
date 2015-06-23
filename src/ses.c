@@ -58,6 +58,9 @@ char * ses_grow(char ** me, size_t  * size, size_t * space, size_t new_space) {
   
   aid = realloc(*me, new_space);
   if (!aid) return NULL;
+  /* Be sure to fill newly allocated area with NUL characters. */
+  memset(aid+(*space), '\0', new_space-(*space));
+  
   (*space) = new_space;
   (*me)    = aid;   
   return (*me);
@@ -250,5 +253,12 @@ Swis * swis_read_filename(Swis * me, char * fn) {
   if(!ses_read_filename(SWIS_EXPAND(me), fn)) return NULL;
   return me;
 }
+
+
+
+
+
+
+
 
 

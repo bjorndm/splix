@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+<notselfclosed></notselfclosed>
+<selfclosed/>
+<parent>
+<selfclosed attr="foo" attr2="bar"/>
+<notselfclosed attr="foo" attr2="bar"></notselfclosed>
+</parent>
+</root>

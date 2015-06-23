@@ -1,0 +1,123 @@
+= splix
+
+
+== Introduction
+
+The splix program splits a large input XML file into smaller ones based 
+on the file's contents. This can be useful when working with huge XML files. 
+
+When running splix, you have to chooses an input file, and output directory 
+and a split level.  The XML file will be then split at the chosen hierarchical 
+depth of the tags in the XML tree. Splix will output a header named header.xml 
+and many files with automatically chosen file names and a .xml extension. 
+
+The generated header.xml fill will contain all tags that are at a lower 
+hierarchical depth than the split level, and placeholder 
+<splix ref="filename.xml"/> tags for the split-out xml 
+elements to enable reconstruction of the original file. 
+
+The split off files will have file names based on the tag names, and any 
+attributes of that that match /[iI][dD]/ or, if that is missing 
+any attributes that match /.*[rR][eE][fF].*/. 
+
+An underscore in the file name represents a change in depth of the XML tree at 
+that level. The split off files will contain all tags that are at a hierarchical 
+level equal to or higher than the split level. The parts of the file name 
+are coded with percent coding to avoid invalid characters in the file name 
+and to keep the level structure clear.  In case a duplicate file name would be 
+generated the file name will have a .number.xml suffix.
+
+== Usage 
+
+The program splix is a command line tool with the following options:
+
+splix: syntax: splix -o output_dir -i input_file.xml -l split_level [-N] 
+
+The -o option is used to specify the output directory. 
+The output directory must exist and be writable.
+
+The -i option is used to specify the input file. 
+The input file must exist and be readable.
+
+The -l option is used to specify the split level. It must be nonnegative integer. 
+Some trial and error mat be needed to find the most useful split level.
+
+It's mandatory to give all three of the -i, -o and -l options. 
+
+If the optional -N option is specified all name spaces of the root tag of 
+input_file.xml will be copied to the root tags of the generated output files.
+
+The file names of all files that are processed are output to standard output.
+If any errors are encountered, these will be printed to standard error.
+
+== Installation
+
+=== Prerequisites
+
+Splix requires libexpat and a POSIX operating system that supports getopt().
+
+=== Installation Procedure
+
+Splix is compiled with Tup. Just do tup in the source dir to compile it.
+Then copy bin/splix or bin/splix_static to somewhere in the path.
+
+== Return Value
+
+The program returns 0 on success, nonzero on error.
+
+== Notes
+
+== Known Bugs
+
+If the XML file has long tag names, or long ID's or REF values, or a very deep
+structure, or a too high split level is chosen, splix may try to generate 
+file names that are too long and fail in interesting ways.
+
+== Acknowledgements
+
+This programm uses various elements of klib (kvec.h, kbtree.h) under the MIT/X11
+license. It also uses a modified MIT version of slre.c and slre.h.
+
+== Author
+
+Björn De Meyer, 2015.
+
+== License
+
+The Sleepycat License
+
+Splix is copyright (c) 2015 (bjorn.de.meyer@gmail.com),
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, 
+   this list of conditions and the following disclaimer.
+   
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation 
+   and/or other materials provided with the distribution.
+   
+3. Redistributions in any form must be accompanied by information on how to 
+   obtain complete source code for the Splix software and any accompanying 
+   software that uses the Splix software. The source code must either be 
+   included in the distribution or be available for no more than the cost of 
+   distribution plus a nominal fee, and must be freely redistributable under 
+   reasonable conditions. For an executable file, complete source code means 
+   the source code for all modules it contains. It does not include source code 
+   for modules or files that typically accompany the major components of the 
+   operating system on which the executable file runs.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE 
+DISCLAIMED. IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
