@@ -22,13 +22,21 @@ LDFLAGS = $(SPLIX_LIBS)
 LD_STATIC_FLAGS = -static $(LDFLAGS)
 
 !cc = |> ^ CC %f ^ gcc  $(CFLAGS) -c %f -o %o |>
-!ld = |> gcc %f $(LDFLAGS) -o %o |> 
+!cc32 = |> ^ CC %f ^ gcc -m32 $(CFLAGS) -c %f -o %o |>
+!ld = |> gcc %f $(LDFLAGS) -o %o |>
 !ld_static = |> gcc %f $(LD_STATIC_FLAGS) -o %o |> 
+!ld32 = |> gcc -m32 %f $(LDFLAGS) -o %o |>
+!ld32_static = |> gcc -m32 %f $(LD_STATIC_FLAGS) -o %o |> 
 
-: foreach $(SRC_FILES) |> !cc |>  build/%B.o {objects}
-: $(MAIN_FILE) |> !cc |>  build/%B.o {main}
+: foreach $(SRC_FILES) |> !cc |>  build/64/%B.o {objects}
+: $(MAIN_FILE) |> !cc |>  build/64/%B.o {main}
 : {objects} {main} |> !ld |> bin/splix
 : {objects} {main} |> !ld_static |> bin/splix_static
+
+: foreach $(SRC_FILES) |> !cc32 |>  build/32/%B.o {objects32}
+: $(MAIN_FILE) |> !cc32 |>  build/32/%B.o {main32}
+: {objects32} {main32} |> !ld32 |> bin/splix32
+: {objects32} {main32} |> !ld32_static |> bin/splix_static32
 
 # ^ LINK %f ^
 

@@ -31,7 +31,7 @@ generated the file name will have a .number.xml suffix.
 
 The program splix is a command line tool with the following options:
 
-splix: syntax: splix -o output_dir -i input_file.xml -l split_level [-N] 
+splix: syntax: splix -o output_dir -i input_file.xml -l split_level [-n] [-q] [-a] [-d]
 
 The -o option is used to specify the output directory. 
 The output directory must exist and be writable.
@@ -44,22 +44,35 @@ Some trial and error mat be needed to find the most useful split level.
 
 It's mandatory to give all three of the -i, -o and -l options. 
 
-If the optional -N option is specified all name spaces of the root tag of 
+If the optional -n option is specified all name spaces of the root tag of 
 input_file.xml will be copied to the root tags of the generated output files.
 
+If the optional -q option is specified the escaping of double quotes
+as &quot; will be supressed where possible.
+
+If the optional -a option is specified the escaping of ampersands
+as &amp; will be supressed where possible.
+
+If the optional -v option is specified the version of splix is printed and 
+splix exits.
+
 The file names of all files that are processed are output to standard output.
-If any errors are encountered, these will be printed to standard error.
+If any errors are encountered, these will be printed to standard error,
+and the program will return nonzero. The program will return zero on success.
+
 
 == Installation
 
 === Prerequisites
 
-Splix requires libexpat and a POSIX operating system that supports getopt().
+Splix requires both 64 bits and 32 bits versions of libexpat and a POSIX 
+operating system that supports getopt(). 
 
 === Installation Procedure
 
 Splix is compiled with Tup. Just do tup in the source dir to compile it.
-Then copy bin/splix or bin/splix_static to somewhere in the path.
+Then copy bin/splix or bin/splix_static to somewhere in the path. Use 
+bin/splix32 or bin/splix_static32 on 32 bits systems.
 
 == Return Value
 
