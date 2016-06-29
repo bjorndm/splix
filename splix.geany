@@ -23,9 +23,32 @@ long_line_behaviour=1
 long_line_column=80
 
 [files]
+current_page=4
+FILE_NAME_0=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fsrc%2Fbarg.c;0;2
+FILE_NAME_1=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fsrc%2Fbptrie.c;0;2
+FILE_NAME_2=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fsrc%2Fses.c;0;2
+FILE_NAME_3=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fsrc%2Fslre.c;0;2
+FILE_NAME_4=5811;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fsrc%2Fsplix.c;0;2
+FILE_NAME_5=680;None;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2FTupfile;0;2
+FILE_NAME_6=3813;None;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2FREADME;0;2
+FILE_NAME_7=23;None;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fbuild%2F32%2Ftup.config;0;2
+FILE_NAME_8=9633;Java;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fwork%2Fsrc%2Fxml_splitter%2Fsrc%2Fxml_splitter%2FXML_Cutter.java;0;2
+FILE_NAME_9=3087;Java;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fwork%2Fsrc%2Fxml_splitter%2Fsrc%2Fxml_splitter%2FXML_Splitter.java;0;2
+FILE_NAME_10=0;Python;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fwork%2Fsrc%2Fxml_splitter%2Ffunc_test%2Ftest_run_pos.py;0;2
+FILE_NAME_11=991;Python;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fwork%2Fsrc%2Fxml_splitter%2Ffunc_test%2Fcmd_gen.py;0;2
+FILE_NAME_12=358;Java;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fwork%2Fsrc%2Fxml_splitter%2Fsrc%2Fxml_splitter%2FPercentCode.java;0;2
+FILE_NAME_13=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Finclude%2Fkvec.h;0;2
+FILE_NAME_14=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Finclude%2Fses.h;0;2
+FILE_NAME_15=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Finclude%2Fkbtree.h;0;2
+FILE_NAME_16=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2Fkhmm.h;0;2
+FILE_NAME_17=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2Fknhx.h;0;2
+FILE_NAME_18=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2Fkson.h;0;2
+FILE_NAME_19=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2Ftest%2Fkhash_test.c;0;2
+FILE_NAME_20=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2Ftest%2Fkhash_keith.c;0;2
+FILE_NAME_21=7242;Markdown;0;EUTF-8;0;1;0;%2Fhome%2Fbjorn%2Fsrc%2Fsplix%2Fvendor%2Fklib-master%2FREADME.md;0;2
 
 [VTE]
-last_dir=/home/bjorn/work/src/splix
+last_dir=/home/bjorn/work/src/xml_splitter/func_test
 
 [build-menu]
 EX_00_LB=_Execute

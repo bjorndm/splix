@@ -103,8 +103,9 @@
 // If SLRE_IGNORE is passed, then all further captures are ignored.
 //
 // Return:
-//   NULL: string matched and all captures successfully made
-//   non-NULL: in this case, the return value is an error string
+//   A value from the slre_result enum.
+//   SLRE_OK: string matched and all captures successfully made
+//   SLRE_ERROR_*: otherwise, an error code.
 
 /* Match options. */
 enum slre_option { 
@@ -146,8 +147,8 @@ enum slre_result {
 };
 
 /* Maximum amount of captures. */
-#ifndef SLRE_CAPURES_MAX
-#define SLRE_CAPURES_MAX 64
+#ifndef SLRE_CAPTURES_MAX
+#define SLRE_CAPTURES_MAX 64
 #endif
 
 

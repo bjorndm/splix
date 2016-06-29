@@ -1,0 +1,3 @@
+[submodule "vendor/parg"]
+	path = vendor/parg
+	url = https://github.com/jibsen/parg

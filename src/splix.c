@@ -39,20 +39,40 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <expat.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
+
+
+/* mkdir and isatty portability hack */
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#define SPLIX_MKDIR(PATH, MODE) _mkdir((PATH))
+#define SPLIX_ISATTY(FD) _isatty(FD)
+#define SPLIX_FILENO(AFILE) _fileno(AFILE)
+#else
+#include <unistd.h>
 #include <sys/stat.h>
+#define SPLIX_MKDIR(PATH, MODE) mkdir((PATH), (MODE))
+#define SPLIX_ISATTY(FD) isatty(FD)
+#define SPLIX_FILENO(AFILE) fileno(AFILE)
+#endif
 
 #include "ses.h"
 #include "slre.h"
 #include "kbtree.h"
 #include "kvec.h"
+#include "parg.h"
+
 
 #define SPLIX_BUFF_SIZE (1024*256)
 #define SPLIX_VERSION "2.0.0"
@@ -173,10 +193,10 @@ char * swis_escape_xml_flags(Swis * me, const char * in, unsigned int flags) {
 }
 
 
-/** Encodes the string into percent code. */
+/** Encodes the string to percent code. */
 char * swis_percent_encode(Swis * out, char * in) {
   for (; (*in); in++) {
-    int ch = (*in);
+    int ch = 0xFF & (*in);
     if (isalnum(ch)) { 
       swis_append_char(out, ch);
     } else {
@@ -250,7 +270,7 @@ int splix_mkpath(const char* file_path, mode_t mode) {
     p   = strchr(p+1, '/');
     /* End case of the last subdirectory with no further subdirs. */
     if (!p) {
-      res = mkdir(aid_path, mode);
+      res = SPLIX_MKDIR(aid_path, mode);
       if ((res == -1) && (errno == EEXIST)) {
         res = 0;
       }
@@ -258,7 +278,7 @@ int splix_mkpath(const char* file_path, mode_t mode) {
     } else {
       *p    = '\0';
       errno = 0;
-      res = mkdir(aid_path, mode);
+      res = SPLIX_MKDIR(aid_path, mode);
       if ((res == -1) && (errno != EEXIST)) {
         break;
       }
@@ -763,7 +783,7 @@ int splix_setup_data(struct SplixData * data, XML_Parser parser, char * outname,
   data->split_count   = 1;  /* 1 becase header is always written. */
   
   /* Check if running interactively on a tty. */
-  if (isatty(0)) { 
+  if (SPLIX_ISATTY(SPLIX_FILENO(stdin))) {
     data->flags |= SPLIX_TTY_FLAG;
   }
   
@@ -784,9 +804,11 @@ int splix_setup_data(struct SplixData * data, XML_Parser parser, char * outname,
   if (!data->fheader) { 
     splix_report_fatal(ENOENT, "Could not open file %s/header.xml", outname);
   }
-  setvbuf(data->fheader, NULL, _IOFBF, SPLIX_FILE_BUFF_SIZE);  
   swis_free(&buf);
-  data->fout          = data->fheader;    
+  
+  /* buffer output for speed */
+  setvbuf(data->fheader, NULL, _IOFBF, SPLIX_FILE_BUFF_SIZE);    
+  data->fout          = data->fheader;
   
   /* Open binary tree */
   data->names         = kb_init(SplixNameTree, KB_DEFAULT_SIZE); 
@@ -938,22 +960,25 @@ void splix_show_version() {
 
 int main(int argc, char * argv[]) {
   int split_level = -1; 
-  char * input_name = NULL, *output_name = NULL;
+  char * input_name = NULL;
+  char * output_name = NULL;
   unsigned int flags = 0;
   int opt;
+  struct parg_state ps;
+  parg_init(&ps);
   
-  while ((opt = getopt(argc, argv, "l:i:o:adnqvNQV")) != -1) {
+  while ((opt = parg_getopt(&ps, argc, argv, "l:i:o:adnqvNQV")) != -1) {
     switch (opt) {
     case 'i':
-      input_name = optarg;
+      input_name = (char *) ps.optarg;
       break;
     
     case 'o': 
-      output_name = optarg;
+      output_name = (char *) ps.optarg;
       break;
     
     case 'l':
-      split_level = atoi(optarg);
+      split_level = atoi(ps.optarg);
     break;
     
     case 'n': 

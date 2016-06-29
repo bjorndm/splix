@@ -814,7 +814,7 @@ static int capture(const struct slre_captured *caps, int num_caps, va_list ap) {
 int slre_match(enum slre_option options, const char *re,
                        const char *buf, int buf_len, ...) {
   struct slre slre;
-  struct slre_captured caps[SLRE_CAPURES_MAX];
+  struct slre_captured caps[SLRE_CAPTURES_MAX];
   va_list ap;
   int error = SLRE_OK;
 

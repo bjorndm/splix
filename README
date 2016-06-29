@@ -44,8 +44,11 @@ Some trial and error mat be needed to find the most useful split level.
 
 It's mandatory to give all three of the -i, -o and -l options. 
 
-If the optional -n option is specified all name spaces of the root tag of 
+If the optional -n option is specified all name spaces in the header part of 
 input_file.xml will be copied to the root tags of the generated output files.
+This differs from the -N option in that all name spaces in all tags at a split 
+level less than the requested level will be copied, and not just those of 
+the root tag.
 
 If the optional -q option is specified the escaping of double quotes
 as &quot; will be supressed where possible.
@@ -56,6 +59,17 @@ as &amp; will be supressed where possible.
 If the optional -v option is specified the version of splix is printed and 
 splix exits.
 
+If the optional -Q option is specified splix will silence all non-error output.
+
+If the optional -N option is specified all name spaces of the root tag of
+input_file.xml will be copied to the root tags of the generated output files.
+This differs from the -n option in that only the name spaces of the 
+root tag are copied.
+
+If the optional -V option is specified splix will produce more verbose output.
+
+If the optional -Q option is specified splix will silence all non-error output.
+
 The file names of all files that are processed are output to standard output.
 If any errors are encountered, these will be printed to standard error,
 and the program will return nonzero. The program will return zero on success.
@@ -65,14 +79,15 @@ and the program will return nonzero. The program will return zero on success.
 
 === Prerequisites
 
-Splix requires both 64 bits and 32 bits versions of libexpat and a POSIX 
-operating system that supports getopt(). 
-
+Splix requires libexpat and a POSIX operating system that supports the 
+getopt(), mkdir(), and isatty() system calls. To compile 32 bits binaries
+32 bits version of libexpat is must also be installed.
+ 
 === Installation Procedure
 
 Splix is compiled with Tup. Just do tup in the source dir to compile it.
-Then copy bin/splix or bin/splix_static to somewhere in the path. Use 
-bin/splix32 or bin/splix_static32 on 32 bits systems.
+Then copy bin/splix or bin/splix_static to somewhere in the path. To compile 
+32 bits versions use tup build-i386 and copy the binaries in build-i386/bin
 
 == Return Value
 
@@ -88,8 +103,10 @@ file names that are too long and fail in interesting ways.
 
 == Acknowledgements
 
-This programm uses various elements of klib (kvec.h, kbtree.h) under the MIT/X11
-license. It also uses a modified MIT version of slre.c and slre.h.
+This program uses the following open source components: 
+* klib (kvec.h, kbtree.h) under the MIT/X11 license. 
+* A modified MIT licensed version of slre.c and slre.h.
+* parg.c and parg.h for argument parsing, under the CC0 license.
 
 == Author
 

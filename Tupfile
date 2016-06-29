@@ -11,6 +11,7 @@ endif
 # Source files of splix
 SRC_FILES =  src/slre.c
 SRC_FILES += src/ses.c
+SRC_FILES += src/parg.c
 
 MAIN_FILE  = src/splix.c
 
@@ -22,21 +23,30 @@ LDFLAGS = $(SPLIX_LIBS)
 LD_STATIC_FLAGS = -static $(LDFLAGS)
 
 !cc = |> ^ CC %f ^ gcc  $(CFLAGS) -c %f -o %o |>
-!cc32 = |> ^ CC %f ^ gcc -m32 $(CFLAGS) -c %f -o %o |>
 !ld = |> gcc %f $(LDFLAGS) -o %o |>
-!ld_static = |> gcc %f $(LD_STATIC_FLAGS) -o %o |> 
-!ld32 = |> gcc -m32 %f $(LDFLAGS) -o %o |>
-!ld32_static = |> gcc -m32 %f $(LD_STATIC_FLAGS) -o %o |> 
+!ld_static = |> gcc %f $(LD_STATIC_FLAGS) -o %o |>
 
-: foreach $(SRC_FILES) |> !cc |>  build/64/%B.o {objects}
-: $(MAIN_FILE) |> !cc |>  build/64/%B.o {main}
-: {objects} {main} |> !ld |> bin/splix
-: {objects} {main} |> !ld_static |> bin/splix_static
 
-: foreach $(SRC_FILES) |> !cc32 |>  build/32/%B.o {objects32}
-: $(MAIN_FILE) |> !cc32 |>  build/32/%B.o {main32}
-: {objects32} {main32} |> !ld32 |> bin/splix32
-: {objects32} {main32} |> !ld32_static |> bin/splix_static32
+ifdef TARGET_ARCH
+  TARGET_ARCH=@(TARGET_ARCH)
+else
+  TARGET_ARCH=x86_64
+endif
+
+BUILD_PATH = build/$(TARGET_ARCH)
+
+ifeq ($(TARGET_ARCH),i386)
+  CFLAGS += -m32
+  LDFLAGS += -m32
+  LD_STATIC_FLAGS += -m32
+endif
+
+: foreach $(SRC_FILES) |> !cc |>  $(BUILD_PATH)/obj/%B.o {objects}
+: $(MAIN_FILE) |> !cc |>  $(BUILD_PATH)/obj/%B.o {main}
+: {objects} {main} |> !ld |> $(BUILD_PATH)/bin/splix {bin}
+: {objects} {main} |> !ld_static |> $(BUILD_PATH)/bin/splix_static {bin_static}
+: {bin} |> cp %f %o |> bin/%B.$(TARGET_ARCH)
+: {bin_static} |> cp %f %o |> bin/%B.$(TARGET_ARCH)
 
 # ^ LINK %f ^
 
