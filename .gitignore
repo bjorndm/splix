@@ -3,3 +3,6 @@ vendor
 build
 test/out
 .tup
+test/cases/priv
+build-i386
+build-x86_64
